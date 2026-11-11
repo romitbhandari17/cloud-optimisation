@@ -1,8 +1,9 @@
 # Cloudineer Cost Assessment Engine
 
-Reusable, multi-account Python framework for AWS FinOps agents. Phase 1 ships three
-agents (Discovery, Cost Analysis, Compute Optimisation, DB Optimisation) behind a common agent contract, so
-customer N is a config file, not a code fork.
+Reusable, multi-account Python framework for AWS FinOps agents. Phase 1 ships five
+agents (Discovery, Cost Analysis, Compute Optimisation, DB Optimisation, Network
+Optimisation) behind a common agent contract, so customer N is a config file, not a
+code fork.
 
 - **Architecture**: see [`docs/architecture.md`](docs/architecture.md).
 - **Source of requirements**: [`docs/context.txt`](docs/context.txt),
@@ -18,7 +19,7 @@ src/cloudineer/
   core/            # framework: contract, base agent, context, registry, orchestrator
     tools/         # Tool/ToolRegistry, AWS cross-account session factory, MCP client
     ai/            # optional Bedrock-backed AI fallback
-  agents/          # discovery_agent.py, cost_analysis_agent.py, compute_optimisation_agent.py, db_optimisation_agent.py
+  agents/          # discovery_agent.py, cost_analysis_agent.py, compute_optimisation_agent.py, db_optimisation_agent.py, network_optimisation_agent.py
   reports/         # dashboard_builder.py -> Assessment Dashboard JSON
   cli.py           # `python -m cloudineer.cli run ...`
 config/customers/  # one YAML file per customer (account id, role arn, enabled agents)

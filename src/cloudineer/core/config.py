@@ -22,7 +22,13 @@ class CustomerConfig(BaseModel):
     lookback_days: int = 30
     excluded_tags: list[str] = Field(default_factory=list)
     enabled_agents: list[str] = Field(
-        default_factory=lambda: ["discovery", "cost-analysis", "compute-optimisation", "db-optimisation"]
+        default_factory=lambda: [
+            "discovery",
+            "cost-analysis",
+            "compute-optimisation",
+            "db-optimisation",
+            "network-optimisation",
+        ]
     )
     mode: str = "assessment"
     ai_enabled: bool = True

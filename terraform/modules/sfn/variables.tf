@@ -20,6 +20,10 @@ variable "db_optimisation_lambda_arn" {
   type = string
 }
 
+variable "network_optimisation_lambda_arn" {
+  type = string
+}
+
 variable "dashboard_lambda_arn" {
   type = string
 }

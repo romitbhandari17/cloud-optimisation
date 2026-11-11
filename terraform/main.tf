@@ -43,13 +43,14 @@ module "agents" {
 module "sfn" {
   source = "./modules/sfn"
 
-  project_name                = var.project_name
-  discovery_lambda_arn        = module.agents.agent_lambda_arns["discovery"]
-  cost_analysis_lambda_arn    = module.agents.agent_lambda_arns["cost-analysis"]
+  project_name                    = var.project_name
+  discovery_lambda_arn            = module.agents.agent_lambda_arns["discovery"]
+  cost_analysis_lambda_arn        = module.agents.agent_lambda_arns["cost-analysis"]
   compute_optimisation_lambda_arn = module.agents.agent_lambda_arns["compute-optimisation"]
-  db_optimisation_lambda_arn  = module.agents.agent_lambda_arns["db-optimisation"]
-  dashboard_lambda_arn        = module.agents.dashboard_lambda_arn
-  tags                        = var.tags
+  db_optimisation_lambda_arn      = module.agents.agent_lambda_arns["db-optimisation"]
+  network_optimisation_lambda_arn = module.agents.agent_lambda_arns["network-optimisation"]
+  dashboard_lambda_arn            = module.agents.dashboard_lambda_arn
+  tags                            = var.tags
 }
 
 module "api" {

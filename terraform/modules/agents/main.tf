@@ -88,6 +88,7 @@ locals {
     cost-analysis        = "cloudineer.handlers.cost_analysis_handler.handler"
     compute-optimisation = "cloudineer.handlers.compute_optimisation_handler.handler"
     db-optimisation      = "cloudineer.handlers.db_optimisation_handler.handler"
+    network-optimisation = "cloudineer.handlers.network_optimisation_handler.handler"
   }
 }
 

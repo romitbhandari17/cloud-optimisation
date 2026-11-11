@@ -53,6 +53,7 @@ data "aws_iam_policy_document" "assessment_read_only" {
       "ecs:DescribeServices",
       "eks:ListClusters",
       "eks:DescribeCluster",
+      "elasticloadbalancing:Describe*",
     ]
     resources = ["*"]
   }

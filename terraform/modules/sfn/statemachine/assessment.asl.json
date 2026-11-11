@@ -1,5 +1,5 @@
 {
-  "Comment": "Cloudineer Cost Assessment Engine — Phase 1 (discovery, cost-analysis, compute-optimisation, db-optimisation). Runs the agents in parallel, then aggregates into the Assessment Dashboard. See docs/architecture.md.",
+  "Comment": "Cloudineer Cost Assessment Engine — Phase 1 (discovery, cost-analysis, compute-optimisation, db-optimisation, network-optimisation). Runs the agents in parallel, then aggregates into the Assessment Dashboard. See docs/architecture.md.",
   "StartAt": "RunAgents",
   "States": {
     "RunAgents": {
@@ -150,6 +150,44 @@
               "Type": "Pass",
               "Parameters": {
                 "agent": "db-optimisation",
+                "account_id.$": "$.customer_config.account_id",
+                "findings": [],
+                "errors.$": "States.Array($.error.Error)"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NetworkOptimisation",
+          "States": {
+            "NetworkOptimisation": {
+              "Type": "Task",
+              "Resource": "${network_optimisation_lambda_arn}",
+              "Parameters": {
+                "customer_config.$": "$.customer_config"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "NetworkOptimisationFailed"
+                }
+              ],
+              "End": true
+            },
+            "NetworkOptimisationFailed": {
+              "Type": "Pass",
+              "Parameters": {
+                "agent": "network-optimisation",
                 "account_id.$": "$.customer_config.account_id",
                 "findings": [],
                 "errors.$": "States.Array($.error.Error)"

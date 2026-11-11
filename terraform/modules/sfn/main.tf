@@ -37,6 +37,7 @@ resource "aws_iam_role_policy" "state_machine_invoke_lambda" {
         var.cost_analysis_lambda_arn,
         var.compute_optimisation_lambda_arn,
         var.db_optimisation_lambda_arn,
+        var.network_optimisation_lambda_arn,
         var.dashboard_lambda_arn,
       ]
     }]
@@ -53,6 +54,7 @@ resource "aws_sfn_state_machine" "assessment" {
     cost_analysis_lambda_arn        = var.cost_analysis_lambda_arn
     compute_optimisation_lambda_arn = var.compute_optimisation_lambda_arn
     db_optimisation_lambda_arn      = var.db_optimisation_lambda_arn
+    network_optimisation_lambda_arn = var.network_optimisation_lambda_arn
     dashboard_lambda_arn            = var.dashboard_lambda_arn
   })
 }

@@ -20,17 +20,19 @@ Build a reusable, customer-independent engine that can be pointed at *any* AWS a
 The same agent code runs for customer A, B, C, … — only configuration (account id,
 regions, excluded tags, enabled agents) changes.
 
-## 2. Phase 1 scope — three agents
+## 2. Phase 1 scope — five agents
 
 | Priority | Agent | Responsibility | Primary implementation |
 |---|---|---|---|
 | 1 | **Discovery Agent** | Enumerate accounts, regions, services and resources | Boto3 (deterministic) |
 | 2 | **Cost Analysis Agent** | Cost Explorer / CUR trends, anomalies, cost-by-service breakdown | Boto3 + rules, AI for narrative explanation |
 | 3 | **Compute Optimisation Agent** | CloudWatch utilisation (EC2, ECS, Lambda) + Compute Optimizer → right-sizing findings | Boto3 + rules, AI fallback for ambiguous cases |
+| 4 | **DB Optimisation Agent** | RDS/Aurora CloudWatch utilisation, Multi-AZ-in-non-prod → right-sizing/Serverless v2 findings | Boto3 + rules, AI fallback for ambiguous cases |
+| 5 | **Network Optimisation Agent** | Idle NAT Gateways, unused load balancers, unattached Elastic IPs, data-transfer cost breakdown | Boto3 + rules (deterministic) |
 
-Additional agents (ECS/EKS, Database, Storage, Network, Pricing, Non-Prod scheduling,
-Savings Validation) are added later as independent, versioned modules without changing
-the core framework — this is the reason the framework is built now, generically.
+Additional agents (EKS, Storage, Pricing, Non-Prod scheduling, Savings Validation)
+are added later as independent, versioned modules without changing the core
+framework — this is the reason the framework is built now, generically.
 
 ## 3. Guiding principles (from context docs)
 
@@ -111,7 +113,9 @@ EventBridge / manual StartExecution
 │  Parallel                                                                        │
 │   ├─ Lambda: discovery-agent         ──▶ AgentResult JSON (Catch → safe fallback) │
 │   ├─ Lambda: cost-analysis-agent     ──▶ AgentResult JSON (Catch → safe fallback) │
-│   └─ Lambda: compute-optimisation-agent  ──▶ AgentResult JSON (Catch → safe fallback) │
+│   ├─ Lambda: compute-optimisation-agent  ──▶ AgentResult JSON (Catch → safe fallback) │
+│   ├─ Lambda: db-optimisation-agent   ──▶ AgentResult JSON (Catch → safe fallback) │
+│   └─ Lambda: network-optimisation-agent  ──▶ AgentResult JSON (Catch → safe fallback) │
 │        │                                                                         │
 │        ▼                                                                         │
 │  Lambda: dashboard  ──▶ builds Assessment Dashboard, writes to S3 reports bucket  │
@@ -177,7 +181,7 @@ regions: ["ap-south-1", "us-east-1"]
 environment: ["production", "staging"]
 lookback_days: 30
 excluded_tags: ["critical", "do-not-modify"]
-enabled_agents: ["discovery", "cost-analysis", "compute-optimisation", "db-optimisation"]
+enabled_agents: ["discovery", "cost-analysis", "compute-optimisation", "db-optimisation", "network-optimisation"]
 mode: assessment
 ```
 

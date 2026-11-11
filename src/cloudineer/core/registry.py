@@ -38,10 +38,12 @@ def build_default_registry() -> AgentRegistry:
     from cloudineer.agents.cost_analysis_agent import CostAnalysisAgent
     from cloudineer.agents.db_optimisation_agent import DatabaseOptimisationAgent
     from cloudineer.agents.discovery_agent import DiscoveryAgent
+    from cloudineer.agents.network_optimisation_agent import NetworkOptimisationAgent
 
     registry = AgentRegistry()
     registry.register(DiscoveryAgent())
     registry.register(CostAnalysisAgent())
     registry.register(ComputeOptimisationAgent())
     registry.register(DatabaseOptimisationAgent())
+    registry.register(NetworkOptimisationAgent())
     return registry
