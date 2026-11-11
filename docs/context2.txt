@@ -1,0 +1,218 @@
+Not necessarily. There are actually two deployment models, and I would recommend a hybrid architecture for Cloudineer.
+
+You can either deploy the agents inside the customer's AWS account or host the agents centrally in Cloudineer's AWS account and give them secure, temporary access to customer accounts.
+
+For your business model, I would choose the second approach initially.
+
+# 1. Option A — Agents deployed in the customer's AWS account
+
+Customer-side deployment
+
+In this model, Cloudineer deploys the complete agent infrastructure into the customer's AWS account.
+
+## Customer AWS Account
+
+Amazon Bedrock Agents
+
+FinOps Orchestrator + Specialist Agents
+
+Lambda / Python Tools
+
+Boto3 · Cost Explorer · CloudWatch · EC2 · RDS · S3
+
+Customer AWS Infrastructure
+
+EC2 · ECS · RDS · S3 · EKS · Lambda
+
+How it works:
+
+1. Customer grants deployment access.
+2. Cloudineer deploys the agents using CloudFormation or Terraform.
+3. Agents receive IAM roles with appropriate permissions.
+4. Agents access AWS APIs and CloudWatch metrics.
+5. Agents generate cost optimisation recommendations.
+6. Approved changes are executed within the customer's account.
+
+Advantages:
+
+- Customer data stays within their AWS environment, subject to the configured services and data flows.
+- Customer has control over the agent infrastructure.
+- Easier to accommodate customers with strict data residency requirements.
+- Customer can continue running the agents after Cloudineer's engagement.
+
+Disadvantages:
+
+- You need to deploy, upgrade and maintain agents separately in every account.
+- Bedrock, Lambda and other agent infrastructure costs are incurred in each customer account.
+- Version management becomes more complicated.
+- Multiple customers mean multiple deployments to manage.
+
+# 2. Option B — Agents hosted centrally in Cloudineer's account
+
+Here, all your reusable agents are deployed once in Cloudineer's AWS account.
+
+Customers do not need to deploy Bedrock Agents into their AWS accounts.
+
+Cloudineer AWS Account
+
+## FinOps Agent Platform
+
+Bedrock · Lambda · Step Functions · DynamoDB
+
+Discovery Agent · Cost Agent · EC2 Agent · RDS Agent · Storage Agent
+
+AWS STS AssumeRole
+
+Temporary, scoped credentials
+
+Customer A
+
+IAM Cross-account Role
+
+EC2 · RDS · S3 · CloudWatch
+
+Customer B
+
+IAM Cross-account Role
+
+EC2 · RDS · S3 · CloudWatch
+
+### How exactly does it work?
+
+Let's say you have a customer with AWS Account ID `111111111111`.
+
+Step 1: Deploy a cross-account IAM role
+
+The customer deploys a CloudFormation template supplied by Cloudineer.
+
+It creates an IAM role such as:
+
+`CloudineerFinOpsReadOnlyRole`
+
+The trust policy allows your Cloudineer AWS account to assume this role.
+
+Step 2: Cloudineer initiates an assessment
+
+Your platform identifies the customer account and requests temporary credentials through AWS STS.
+
+Conceptually:
+
+```
+sts = boto3.client("sts")response = sts.assume_role(    RoleArn="arn:aws:iam::111111111111:role/CloudineerFinOpsReadOnlyRole",    RoleSessionName="CloudineerAssessment")credentials = response["Credentials"]
+```
+
+Step 3: Agents access customer resources
+
+Your EC2 Agent, for example, uses these temporary credentials to access the customer's EC2 and CloudWatch APIs.
+
+```
+ec2 = boto3.client(    "ec2",    aws_access_key_id=credentials["AccessKeyId"],    aws_secret_access_key=credentials["SecretAccessKey"],    aws_session_token=credentials["SessionToken"],    region_name="ap-south-1")instances = ec2.describe_instances()
+```
+
+The same agent code can work against Customer A, Customer B or Customer C. Only the account configuration and assumed role change.
+
+Step 4: Analyse and generate findings
+
+The agent:
+
+- Discovers EC2 instances.
+- Reads CloudWatch CPU and network metrics.
+- Retrieves Compute Optimizer recommendations.
+- Analyses utilisation.
+- Generates right-sizing recommendations.
+- Calculates potential savings using current pricing data.
+
+Step 5: Generate a report
+
+Cloudineer's platform stores the assessment results and generates a customer-specific report.
+
+No permanent AWS access keys are required.
+
+# 3. Option C — Hybrid deployment
+
+This is what I would eventually offer as a mature Cloudineer product.
+
+Cloudineer Central Control Plane
+
+Agent registry · Orchestration · Configuration · Reporting
+
+Customer A
+
+Central agents
+
+Cross-account IAM access
+
+Read-only analysis
+
+Customer B
+
+Local agents
+
+Bedrock + Lambda
+
+Local execution and data processing
+
+For example:
+
+- Smaller customers: centrally hosted agents.
+- Enterprise customers: agents deployed inside their accounts.
+- Highly regulated customers: local execution with customer-controlled data flows.
+
+This allows you to sell the same underlying agent library using different deployment models.
+
+# 4. Which AWS services are required?
+
+| Component              | Cloudineer account | Customer account      |
+| ---------------------- | ------------------ | --------------------- |
+| Bedrock Agents         | Yes, central model | Optional              |
+| Lambda tools           | Yes                | Optional              |
+| Step Functions         | Yes                | Optional              |
+| DynamoDB configuration | Yes                | Optional              |
+| IAM cross-account role | No                 | Yes                   |
+| STS AssumeRole         | Yes                | Trust relationship    |
+| EC2/RDS/S3 APIs        | Access remotely    | Resources reside here |
+| CloudWatch             | Central monitoring | Customer metrics      |
+| CloudTrail             | Central audit      | Customer API audit    |
+
+One important detail: Cost Explorer, Cost and Usage Reports/Data Exports and Compute Optimizer have their own account and organisational access requirements. They are not all accessed through the same resource-discovery APIs. For example, CUR/Data Exports may require customer-side configuration and controlled data sharing or export.
+
+# 5. What should the AWS Engineer actually do for a new customer?
+
+I would make customer onboarding a standard deployment process.
+
+| Sequence | Engineer activity                        |
+| -------- | ---------------------------------------- |
+| 1        | Obtain customer AWS account IDs          |
+| 2        | Identify AWS regions                     |
+| 3        | Deploy Cloudineer IAM role template      |
+| 4        | Verify cross-account access              |
+| 5        | Register customer in Cloudineer platform |
+| 6        | Configure enabled agents                 |
+| 7        | Run initial discovery                    |
+| 8        | Run cost analysis                        |
+| 9        | Generate recommendations                 |
+| 10       | Review findings with customer            |
+
+The customer onboarding process should ideally take hours rather than days, assuming the necessary permissions and cost data are available.
+
+# 6. My final recommendation for Cloudineer
+
+Start with this architecture:
+
+Recommended MVP
+
+Centralised FinOps Agent Platform
+
+- Deploy Bedrock and orchestration once in Cloudineer's account.
+- Deploy a standard read-only IAM role into each customer's account.
+- Use STS AssumeRole for resource discovery and analysis.
+- Keep all agent code reusable.
+- Store customer-specific configuration separately.
+- Generate customer-specific reports.
+- Introduce a separate approval-controlled remediation role later.
+
+One additional point: I would build this using Step Functions as the primary workflow orchestrator and Bedrock Agents for reasoning and tool selection. You don't need a single giant autonomous agent controlling everything.
+
+This gives you a repeatable service that your engineers can deploy across customer accounts without rebuilding the solution each time.
+
+And it creates a potential SaaS product later: customers onboard their AWS accounts, enable FinOps agents and receive continuous optimisation recommendations.

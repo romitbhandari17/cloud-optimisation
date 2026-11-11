@@ -1,0 +1,55 @@
+# 1. Build Lambda artifacts
+./scripts/build_lambda_artifacts.sh
+
+# 2. Deploy central platform (Lambdas, Step Functions, S3, DynamoDB) into your account
+cd terraform
+terraform init && terraform apply
+# note outputs: state_machine_arn, lambda_execution_role_arn, reports_bucket_name
+
+Outputs:
+
+customer_registry_table_name = "cloudineer-finops-customer-registry"
+lambda_execution_role_arn = "arn:aws:iam::968239734180:role/cloudineer-finops-agent-lambda-role"
+reports_bucket_name = "cloudineer-finops-assessment-reports-968239734180"
+state_machine_arn = "arn:aws:states:us-east-1:968239734180:stateMachine:cloudineer-finops-assessment"
+
+# 3. Deploy the customer role — into the SAME account, trusting the Lambda exec role
+cd customer-onboarding
+terraform init
+terraform apply \
+  -var="cloudineer_account_id=<your account id>" \
+  -var="external_id=cloudineer-self-test" \
+  -var='trusted_principal_arns=["<lambda_execution_role_arn from step 2>"]'
+# note output: role_arn
+
+terraform apply \
+  -var="cloudineer_account_id=968239734180" \
+  -var="external_id=cloudineer-self-test" \
+  -var='trusted_principal_arns=["arn:aws:iam::968239734180:role/cloudineer-finops-agent-lambda-role"]'
+
+role_arn = "arn:aws:iam::968239734180:role/CloudineerFinOpsReadOnlyRole"
+role_name = "CloudineerFinOpsReadOnlyRole"
+
+# 4. Update config/customers/cloudineer.yaml with:
+#    role_arn: "<role_arn from step 3>"
+#    external_id: "cloudineer-self-test"
+#    account_id: "<your account id>"
+
+# 5. Trigger the state machine
+aws stepfunctions start-execution \
+  --state-machine-arn <state_machine_arn from step 2> \
+  --input "$(python -c "import yaml,json;print(json.dumps({'customer_config':yaml.safe_load(open('../../config/customers/cloudineer.yaml'))}))")"
+
+# 5. Trigger the state machine
+aws stepfunctions start-execution \
+  --state-machine-arn "arn:aws:states:us-east-1:968239734180:stateMachine:cloudineer-finops-assessment" \
+  --input "$(python3 -c "import yaml,json;print(json.dumps({'customer_config':yaml.safe_load(open('../../config/customers/cloudineer.yaml'))}))")"
+
+# 6. Check the result
+aws stepfunctions describe-execution --execution-arn <executionArn from step 5 output>
+
+
+For a new customer you only need step 3 (customer-onboarding apply) if the central platform (step 2)
+is already deployed in your account. You'd also need to add a new config/customers/<id>.yaml file for that customer
+(not shown as a separate step, but required so Discovery/API can pick them up). Step 1-2 only need rerunning
+if the Lambda code/infra itself changed.

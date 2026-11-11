@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cloudineer FinOps Dashboard — Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #161d2e;
+    --panel-2: #1e2639;
+    --border: #2a3450;
+    --text: #e8ecf5;
+    --muted: #93a1c2;
+    --accent: #5b8cff;
+    --green: #2ecc8f;
+    --yellow: #f4c45c;
+    --red: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 20px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .badge {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(91,140,255,.15);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  main { padding: 24px 32px; max-width: 1300px; margin: 0 auto; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .section h2 { margin: 0 0 14px; font-size: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  .risk { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .risk-high { background: rgba(255,107,107,.15); color: var(--red); }
+  .risk-medium { background: rgba(244,196,92,.15); color: var(--yellow); }
+  .risk-low { background: rgba(46,204,143,.15); color: var(--green); }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .empty { color: var(--muted); font-style: italic; padding: 20px 0; }
+  @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cloudineer FinOps Dashboard <span class="badge">SAMPLE DATA</span></h1>
+  <div class="sub">Discovery · Cost Analysis · EC2/ECS Optimisation · DB (RDS/Aurora) Optimisation — static preview, no API calls</div>
+</header>
+
+<main>
+  <div class="grid" id="summaryCards"></div>
+
+  <div class="charts">
+    <div class="section">
+      <h2>Potential Savings by Agent</h2>
+      <canvas id="savingsChart" height="220"></canvas>
+    </div>
+    <div class="section">
+      <h2>Cost Breakdown</h2>
+      <canvas id="costChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Priority Recommendations</h2>
+    <div id="recommendationsTable"></div>
+  </div>
+
+  <div class="section">
+    <h2>Architecture Risks</h2>
+    <div id="risksTable"></div>
+  </div>
+
+  <div class="section">
+    <h2>AI Opportunities</h2>
+    <div id="aiList"></div>
+  </div>
+</main>
+
+<script>
+// Static, hardcoded sample dashboard (same shape as cloudineer.reports.dashboard_builder.build_dashboard)
+// so this page can be opened on its own, with no API/backend, to preview the UI with real-looking data.
+const SAMPLE_DASHBOARD = {
+  customer_id: "acme-corp",
+  account_id: "123456789012",
+  generated_at: "2026-11-10T22:15:00+00:00",
+  cost_breakdown: {
+    "Amazon Elastic Compute Cloud - Compute": 1850.32,
+    "Amazon Relational Database Service": 920.10,
+    "Amazon Simple Storage Service": 340.55,
+    "Amazon Elastic Container Service": 210.40,
+    "Amazon CloudWatch": 75.20,
+  },
+  potential_savings: {
+    total_monthly_usd: 700.0,
+    by_agent: {
+      discovery: 0.0,
+      "cost-analysis": 0.0,
+      "ec2-optimisation": 340.0,
+      "db-optimisation": 360.0,
+    },
+  },
+  architecture_risks: [
+    {
+      agent: "ec2-optimisation",
+      resource_id: "i-0abc123feed456789",
+      finding: "Idle EC2 instance",
+      recommendation: "Stop or terminate after owner confirmation.",
+      estimated_monthly_savings: 120.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "i-0def456abc789012",
+      finding: "Underutilised EC2 instance",
+      recommendation: "Evaluate downsizing to a smaller instance size.",
+      estimated_monthly_savings: 60.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "prod-cluster/checkout-service",
+      finding: "Idle ECS service",
+      recommendation: "Reduce desired task count or scale the service to zero after owner confirmation.",
+      estimated_monthly_savings: 160.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "db-optimisation",
+      resource_id: "analytics-aurora-cluster",
+      finding: "Underutilised Aurora cluster",
+      recommendation: "Evaluate migrating to Aurora Serverless v2 to auto-scale with demand.",
+      estimated_monthly_savings: 90.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "db-optimisation",
+      resource_id: "idle-reporting-db",
+      finding: "Idle RDS instance",
+      recommendation: "Downsize the instance class or stop it after owner confirmation.",
+      estimated_monthly_savings: 180.0,
+      risk: "high",
+      approval_required: true,
+    },
+  ],
+  ai_opportunities: [
+    {
+      agent: "cost-analysis",
+      resource_id: "Amazon Elastic Compute Cloud - Compute",
+      insight:
+        "EC2 compute is your largest cost center at 42% of total spend, driven by long-running on-demand instances; investigate Savings Plans or Reserved Instance coverage first.",
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "i-0999888777666555",
+      insight:
+        "This instance shows moderate, bursty CPU usage consistent with a scheduled batch job; consider a start/stop schedule instead of a permanent resize.",
+    },
+    {
+      agent: "db-optimisation",
+      resource_id: "analytics-aurora-cluster",
+      insight:
+        "Sustained low CPU with periodic analytics-query spikes is a strong fit for Aurora Serverless v2's automatic scaling, avoiding paying for idle capacity overnight.",
+    },
+  ],
+  priority_recommendations: [
+    {
+      agent: "db-optimisation",
+      resource_id: "idle-reporting-db",
+      finding: "Idle RDS instance",
+      recommendation: "Downsize the instance class or stop it after owner confirmation.",
+      estimated_monthly_savings: 180.0,
+      risk: "high",
+      approval_required: true,
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "prod-cluster/checkout-service",
+      finding: "Idle ECS service",
+      recommendation: "Reduce desired task count or scale the service to zero after owner confirmation.",
+      estimated_monthly_savings: 160.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "i-0abc123feed456789",
+      finding: "Idle EC2 instance",
+      recommendation: "Stop or terminate after owner confirmation.",
+      estimated_monthly_savings: 120.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "db-optimisation",
+      resource_id: "analytics-aurora-cluster",
+      finding: "Underutilised Aurora cluster",
+      recommendation: "Evaluate migrating to Aurora Serverless v2 to auto-scale with demand.",
+      estimated_monthly_savings: 90.0,
+      risk: "medium",
+      approval_required: true,
+    },
+    {
+      agent: "db-optimisation",
+      resource_id: "staging-orders-db",
+      finding: "Multi-AZ enabled on a 'staging' environment RDS instance",
+      recommendation: "Disable Multi-AZ for non-production databases to halve instance cost.",
+      estimated_monthly_savings: 90.0,
+      risk: "low",
+      approval_required: true,
+    },
+    {
+      agent: "ec2-optimisation",
+      resource_id: "i-0def456abc789012",
+      finding: "Underutilised EC2 instance",
+      recommendation: "Evaluate downsizing to a smaller instance size.",
+      estimated_monthly_savings: 60.0,
+      risk: "medium",
+      approval_required: true,
+    },
+  ],
+  errors: [],
+};
+
+const $ = (sel) => document.querySelector(sel);
+let charts = {};
+
+function riskBadge(risk) {
+  return `<span class="risk risk-${risk}">${risk.toUpperCase()}</span>`;
+}
+
+function money(n) {
+  return `$${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function table(rows, cols) {
+  if (!rows.length) return `<div class="empty">Nothing to show.</div>`;
+  const head = cols.map((c) => `<th>${c.replace(/_/g, " ")}</th>`).join("");
+  const body = rows
+    .map(
+      (r) =>
+        `<tr>${cols
+          .map((c) =>
+            c === "risk"
+              ? `<td>${riskBadge(r[c])}</td>`
+              : c === "estimated_monthly_savings"
+              ? `<td>${money(r[c])}</td>`
+              : `<td>${r[c] ?? ""}</td>`
+          )
+          .join("")}</tr>`
+    )
+    .join("");
+  return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderChart(canvasId, type, labels, data, color, datasetLabel) {
+  if (charts[canvasId]) charts[canvasId].destroy();
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  charts[canvasId] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [
+        {
+          label: datasetLabel || "",
+          data,
+          backgroundColor: color || ["#5b8cff", "#2ecc8f", "#f4c45c", "#ff6b6b", "#a78bfa", "#38bdf8"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      plugins: { legend: { display: type !== "bar", labels: { color: "#e8ecf5" } } },
+      scales: type === "bar" ? { x: { ticks: { color: "#93a1c2" } }, y: { ticks: { color: "#93a1c2" } } } : {},
+    },
+  });
+}
+
+function renderDashboard(d) {
+  $("#summaryCards").innerHTML = `
+    <div class="card"><div class="label">Total Monthly Savings</div><div class="value">${money(d.potential_savings.total_monthly_usd)}</div></div>
+    <div class="card"><div class="label">Findings</div><div class="value">${d.priority_recommendations.length}</div></div>
+    <div class="card"><div class="label">Architecture Risks</div><div class="value">${d.architecture_risks.length}</div></div>
+    <div class="card"><div class="label">AI Opportunities</div><div class="value">${d.ai_opportunities.length}</div></div>
+  `;
+
+  const byAgent = d.potential_savings.by_agent || {};
+  renderChart("savingsChart", "bar", Object.keys(byAgent), Object.values(byAgent), "#5b8cff", "Monthly Savings (USD)");
+
+  const cost = d.cost_breakdown || {};
+  renderChart("costChart", "doughnut", Object.keys(cost), Object.values(cost));
+
+  $("#recommendationsTable").innerHTML = table(
+    d.priority_recommendations,
+    ["agent", "resource_id", "finding", "recommendation", "estimated_monthly_savings", "risk"]
+  );
+  $("#risksTable").innerHTML = table(
+    d.architecture_risks,
+    ["agent", "resource_id", "finding", "recommendation", "risk"]
+  );
+  $("#aiList").innerHTML = d.ai_opportunities.length
+    ? d.ai_opportunities.map((o) => `<p><strong>${o.resource_id}</strong> (${o.agent}): ${o.insight}</p>`).join("")
+    : `<div class="empty">No AI opportunities reported.</div>`;
+}
+
+renderDashboard(SAMPLE_DASHBOARD);
+</script>
+</body>
+</html>

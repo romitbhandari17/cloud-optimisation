@@ -1,0 +1,248 @@
+We should build a reusable library of AWS FinOps Agents that can be deployed across different customer AWS accounts.
+
+Rather than having AWS Engineers manually perform all 10 cost optimisation steps, we can create specialised agents that perform discovery, analysis, recommendation, validation and eventually approved remediation.
+
+The important architectural decision is to build these as multi-account, customer-independent agents, not agents hardcoded for one customer's infrastructure.
+
+# 1. Cloudineer FinOps Agent Library
+
+I would start with 10 specialised agents.
+
+## AWS Cloud Cost Optimisation Agents
+
+Reusable across AWS accounts, regions and customer environments.
+
+#### 01
+
+AWS Discovery Agent
+
+Discovers accounts, regions, services and resources.
+
+#### 02
+
+Cost Analysis Agent
+
+Analyses AWS expenditure, trends and cost anomalies.
+
+#### 03
+
+EC2 Optimisation Agent
+
+Identifies idle, oversized and inefficient EC2 instances.
+
+#### 04
+
+ECS / EKS Optimisation Agent
+
+Analyses container utilisation, reservations and node sizing.
+
+#### 05
+
+Database Optimisation Agent
+
+Reviews RDS, Aurora, DynamoDB and ElastiCache.
+
+#### 06
+
+Storage Optimisation Agent
+
+Finds unused volumes, snapshots and S3 lifecycle opportunities.
+
+#### 07
+
+Network Cost Agent
+
+Investigates NAT Gateway, data transfer and load balancer costs.
+
+#### 08
+
+Pricing Optimisation Agent
+
+Analyses Savings Plans, Reserved Instances and Spot opportunities.
+
+#### 09
+
+Non-Production Optimisation Agent
+
+Identifies development and staging resources that can be scheduled.
+
+#### 10
+
+Savings Validation Agent
+
+Measures actual savings after approved changes.
+
+These should be independent modules. A customer could deploy only EC2 and RDS agents initially, then add the other agents later.
+
+# 2. How the Agents Work Together
+
+I would create one central FinOps Orchestrator Agent that invokes specialised agents.
+
+FinOps Orchestrator Agent
+
+Understands the assessment request and coordinates specialist agents
+
+Discovery Agent
+
+Cost Analysis Agent
+
+EC2 / ECS Agent
+
+Database Agent
+
+Storage Agent
+
+Network Agent
+
+Pricing Agent
+
+Scheduling Agent
+
+Recommendations & Savings Validation
+
+Prioritised recommendations · Expected savings · Risks · Evidence
+
+Human Approval → Execution → Verification
+
+One important distinction: I would not force every specialist to be a conversational Bedrock Agent. Many of these tasks are better implemented as deterministic Python analysis services, exposed as tools to the orchestrator. Use an LLM where reasoning, explanation or selecting the next investigative step adds value.
+
+# 3. How to make these agents reusable across ANY AWS account
+
+This is the most important part of the design.
+
+I would use a Central Control Plane + Customer AWS Account Execution Model.
+
+Cloudineer Central Platform
+
+Bedrock · Agent Orchestrator · Agent Registry · Configuration · Reporting
+
+Cross-account IAM AssumeRole
+
+Customer A
+
+AWS Account
+
+EC2 · RDS · S3
+
+ECS · Lambda
+
+CloudWatch
+
+Customer B
+
+AWS Account
+
+EC2 · RDS · S3
+
+ECS · Lambda
+
+CloudWatch
+
+Customer C
+
+AWS Account
+
+EC2 · RDS · S3
+
+ECS · Lambda
+
+CloudWatch
+
+### How this works
+
+1. Customer authorises Cloudineer to access their AWS account.
+2. Customer deploys a predefined cross-account IAM role using CloudFormation or Terraform.
+3. Cloudineer assumes that role using AWS STS.
+4. Agents discover and analyse the customer's resources.
+5. Findings are stored with customer and account identifiers.
+6. Recommendations are generated.
+7. Approved actions are executed using a separately scoped execution role.
+
+You can use the same agent code for 100 different customers.
+
+### Important security design
+
+Maintain two permission profiles:
+
+| Role             | Permissions                                            |
+| ---------------- | ------------------------------------------------------ |
+| Assessment Role  | Read-only inventory, cost, metrics and recommendations |
+| Remediation Role | Specific approved infrastructure changes               |
+
+Never give an agent unrestricted AdministratorAccess.
+
+Also implement:
+
+- Customer-level data isolation.
+- External ID and trust policy validation.
+- Region and account allowlists.
+- Resource exclusion tags.
+- Approval policies.
+- CloudTrail audit logs.
+- Rate limits and execution limits.
+
+For the initial product, I would deploy the assessment engine centrally and keep remediation customer-side or behind tightly controlled cross-account execution roles.
+
+# 4. Standard Agent Contract
+
+Every agent should follow the same input/output contract.
+
+For example, an EC2 Optimisation Agent:
+
+Input configuration
+
+```
+{
+  "customer_id": "customer-001",
+  "account_id": "123456789012",
+  "regions": ["ap-south-1", "us-east-1"],
+  "environment": ["production", "staging"],
+  "lookback_days": 30,
+  "excluded_tags": ["critical", "do-not-modify"],
+  "mode": "assessment"
+}
+```
+
+Expected output
+
+```
+{
+  "agent": "ec2-optimisation-agent",
+  "account_id": "123456789012",
+  "findings": [
+    {
+      "resource_id": "i-xxxxxxxx",
+      "finding": "Underutilised EC2 instance",
+      "evidence": {
+        "average_cpu": "8%",
+        "period_days": 30
+      },
+      "recommendation": "Evaluate downsizing",
+      "estimated_monthly_savings": 120,
+      "currency": "USD",
+      "risk": "medium",
+      "approval_required": true
+    }
+  ]
+}
+```
+
+This standardisation is what makes the agent library reusable, testable and maintainable.
+
+# 5. How I Would Build the First Three Agents
+
+Don't build all ten simultaneously.
+
+| Priority | Agent                  | First implementation           |
+| -------- | ---------------------- | ------------------------------ |
+| 1        | AWS Discovery Agent    | Boto3 + AWS APIs               |
+| 2        | Cost Analysis Agent    | Cost Explorer + CUR + rules    |
+| 3        | EC2 Optimisation Agent | CloudWatch + Compute Optimizer |
+
+Once these three are working across two or three different AWS accounts, establish the deployment template and then expand to databases, storage and networking.
+
+One final architectural recommendation: Build the agents as versioned modules with a common tool interface. Each customer should be able to enable or disable individual agents without changing the underlying code.
+
+This gives Cloudineer the foundation for a productised offering:
+
+Cloudineer FinOps Agent Platform — Reusable AI-powered AWS Cost Discovery, Optimisation and Remediation across multiple AWS accounts.

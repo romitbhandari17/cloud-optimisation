@@ -1,0 +1,174 @@
+{
+  "Comment": "Cloudineer Cost Assessment Engine — Phase 1 (discovery, cost-analysis, compute-optimisation, db-optimisation). Runs the agents in parallel, then aggregates into the Assessment Dashboard. See docs/architecture.md.",
+  "StartAt": "RunAgents",
+  "States": {
+    "RunAgents": {
+      "Type": "Parallel",
+      "ResultPath": "$.agent_results",
+      "Branches": [
+        {
+          "StartAt": "Discovery",
+          "States": {
+            "Discovery": {
+              "Type": "Task",
+              "Resource": "${discovery_lambda_arn}",
+              "Parameters": {
+                "customer_config.$": "$.customer_config"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "DiscoveryFailed"
+                }
+              ],
+              "End": true
+            },
+            "DiscoveryFailed": {
+              "Type": "Pass",
+              "Parameters": {
+                "agent": "discovery",
+                "account_id.$": "$.customer_config.account_id",
+                "findings": [],
+                "errors.$": "States.Array($.error.Error)"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "CostAnalysis",
+          "States": {
+            "CostAnalysis": {
+              "Type": "Task",
+              "Resource": "${cost_analysis_lambda_arn}",
+              "Parameters": {
+                "customer_config.$": "$.customer_config"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "CostAnalysisFailed"
+                }
+              ],
+              "End": true
+            },
+            "CostAnalysisFailed": {
+              "Type": "Pass",
+              "Parameters": {
+                "agent": "cost-analysis",
+                "account_id.$": "$.customer_config.account_id",
+                "findings": [],
+                "errors.$": "States.Array($.error.Error)"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "ComputeOptimisation",
+          "States": {
+            "ComputeOptimisation": {
+              "Type": "Task",
+              "Resource": "${compute_optimisation_lambda_arn}",
+              "Parameters": {
+                "customer_config.$": "$.customer_config"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "ComputeOptimisationFailed"
+                }
+              ],
+              "End": true
+            },
+            "ComputeOptimisationFailed": {
+              "Type": "Pass",
+              "Parameters": {
+                "agent": "compute-optimisation",
+                "account_id.$": "$.customer_config.account_id",
+                "findings": [],
+                "errors.$": "States.Array($.error.Error)"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "DBOptimisation",
+          "States": {
+            "DBOptimisation": {
+              "Type": "Task",
+              "Resource": "${db_optimisation_lambda_arn}",
+              "Parameters": {
+                "customer_config.$": "$.customer_config"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "DBOptimisationFailed"
+                }
+              ],
+              "End": true
+            },
+            "DBOptimisationFailed": {
+              "Type": "Pass",
+              "Parameters": {
+                "agent": "db-optimisation",
+                "account_id.$": "$.customer_config.account_id",
+                "findings": [],
+                "errors.$": "States.Array($.error.Error)"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Next": "BuildDashboard"
+    },
+    "BuildDashboard": {
+      "Type": "Task",
+      "Resource": "${dashboard_lambda_arn}",
+      "Parameters": {
+        "customer_config.$": "$.customer_config",
+        "agent_results.$": "$.agent_results"
+      },
+      "End": true
+    }
+  }
+}

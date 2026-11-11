@@ -1,0 +1,51 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts / archives
+dist/
+build/
+*.zip
+*.tar
+*.tar.gz
+*.whl
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VCS / misc
+*.orig
+*.bak
+*.log
+*.xml
+!terraform/**/*.xml
+
+# Env / secrets
+.env
+.env.*
+
+config/
